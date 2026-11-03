@@ -23,7 +23,7 @@ SCREENSHOTS = ROOT / "docs" / "capturas"
 NAVY = colors.HexColor("#122541")
 BLUE = colors.HexColor("#2457a7")
 PALE = colors.HexColor("#edf3fb")
-INSTITUTION = os.environ.get("INSTITUTION_NAME", "Institución Educativa")
+INSTITUTION = os.environ.get("NOMBRE_INSTITUCION", "Institución Educativa")
 
 
 def build_report():
@@ -42,7 +42,7 @@ def build_report():
         str(OUTPUT), pagesize=A4, rightMargin=20 * mm, leftMargin=20 * mm,
         topMargin=18 * mm, bottomMargin=18 * mm,
         title="Actividad 4 - Tablón de Anuncios con Flask",
-        author="IES Nuevo Horizonte",
+        author=INSTITUTION,
     )
     story = [
         Spacer(1, 23 * mm),
@@ -66,7 +66,7 @@ def build_report():
     ]
     table_data = [
         ["Tabla", "Campos principales", "Claves y restricciones"],
-        ["usuarios", "id, nombre, correo, nombre_usuario, password_hash, creado_en",
+        ["usuarios", "id, nombre, correo, nombre_usuario, contrasena_hash, creado_en",
          "PK: id · UNIQUE: correo, nombre_usuario"],
         ["categorias", "id, nombre, descripcion",
          "PK: id · UNIQUE: nombre"],
@@ -106,14 +106,14 @@ def build_report():
     ]
     structure = [
         ["Módulo", "Responsabilidad"],
-        ["app/auth", "Inicio de sesión y cierre de sesión"],
-        ["app/users", "Administración de usuarios"],
-        ["app/categories", "Administración de categorías"],
-        ["app/announcements", "Administración de anuncios"],
-        ["app/main", "Portada pública, búsqueda y filtros"],
-        ["app/models.py", "Modelos y relaciones SQLAlchemy"],
+        ["app/autenticacion", "Inicio de sesión y cierre de sesión"],
+        ["app/usuarios", "Administración de usuarios"],
+        ["app/categorias", "Administración de categorías"],
+        ["app/anuncios", "Administración de anuncios"],
+        ["app/inicio", "Portada pública, búsqueda y filtros"],
+        ["app/modelos.py", "Modelos y relaciones SQLAlchemy"],
         ["app/templates + app/static", "Vistas HTML comunes y estilos Bootstrap"],
-        ["config.py / run.py / schema.sql", "Configuración, punto de entrada y DDL MySQL"],
+        ["configuracion.py / iniciar.py / schema.sql", "Configuración, punto de entrada y esquema MySQL"],
     ]
     st = Table(structure, colWidths=[55 * mm, 109 * mm], repeatRows=1)
     st.setStyle(TableStyle([
@@ -143,10 +143,14 @@ def build_report():
         Spacer(1, 8 * mm),
         Paragraph("4. Ejecución", styles["Section"]),
         Paragraph("Instalar dependencias con <b>pip install -r requirements.txt</b>, crear la cuenta "
-                  "inicial con <b>flask --app run.py create-admin</b> e iniciar con "
-                  "<b>flask --app run.py run</b>. La configuración predeterminada utiliza SQLite; "
+                  "inicial con <b>flask --app iniciar.py crear-administrador</b> e iniciar con "
+                  "<b>flask --app iniciar.py run</b>. La configuración predeterminada utiliza SQLite; "
                   "DATABASE_URL permite conectar MySQL/MariaDB.", styles["BodySmall"]),
-        Paragraph("Repositorio GitHub: pendiente de publicar por el titular del proyecto.", styles["BodySmall"]),
+        Paragraph(
+            'Repositorio GitHub: <link href="https://github.com/brayanzuniga044/actividad4-tablon-anuncios" '
+            'color="blue">github.com/brayanzuniga044/actividad4-tablon-anuncios</link>.',
+            styles["BodySmall"],
+        ),
     ]
 
     def page_footer(canvas, document):

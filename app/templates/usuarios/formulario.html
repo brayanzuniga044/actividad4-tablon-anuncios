@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo_pagina }}{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">ADMINISTRACIÓN</span><h1>{{ titulo_pagina }}</h1><p>Los campos marcados son obligatorios.</p></div></div>
+<div class="form-card">
+  <form method="post" novalidate>
+    {{ formulario.hidden_tag() }}
+    <div class="mb-3">{{ formulario.nombre.label(class="form-label") }}{{ formulario.nombre(class="form-control" + (" is-invalid" if formulario.nombre.errors else "")) }}{% for error in formulario.nombre.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}</div>
+    <div class="mb-3">{{ formulario.correo.label(class="form-label") }}{{ formulario.correo(class="form-control" + (" is-invalid" if formulario.correo.errors else "")) }}{% for error in formulario.correo.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}</div>
+    <div class="mb-3">{{ formulario.nombre_usuario.label(class="form-label") }}{{ formulario.nombre_usuario(class="form-control" + (" is-invalid" if formulario.nombre_usuario.errors else "")) }}{% for error in formulario.nombre_usuario.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}</div>
+    <div class="mb-4">
+      {{ formulario.contrasena.label(class="form-label") }}
+      {{ formulario.contrasena(class="form-control" + (" is-invalid" if formulario.contrasena.errors else ""), placeholder="Mínimo 8 caracteres" if titulo_pagina == "Nuevo usuario" else "Deja vacío para conservar la contraseña") }}
+      {% for error in formulario.contrasena.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+    <div class="form-actions">{{ formulario.enviar(class="btn btn-primary") }}<a class="btn btn-light" href="{{ url_for('usuarios.lista') }}">Cancelar</a></div>
+  </form>
+</div>
+{% endblock %}

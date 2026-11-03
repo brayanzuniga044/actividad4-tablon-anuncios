@@ -1,257 +1,307 @@
 import re
+import sqlite3
 
 import pytest
 from werkzeug.security import generate_password_hash
 
 from app import create_app, db
-from app.models import Announcement, Category, User
+from app.modelos import Anuncio, Categoria, Usuario
 
 
 @pytest.fixture()
 def app():
-    app = create_app(
+    aplicacion = create_app(
         {
             "TESTING": True,
-            "SECRET_KEY": "test-key",
+            "SECRET_KEY": "clave-pruebas",
             "SQLALCHEMY_DATABASE_URI": "sqlite://",
             "WTF_CSRF_ENABLED": False,
         }
     )
-    with app.app_context():
+    with aplicacion.app_context():
         db.drop_all()
         db.create_all()
-        user = User(
-            name="Ada Lovelace",
-            email="ada@example.com",
-            username="ada",
-            password_hash=generate_password_hash("password123"),
+        usuario = Usuario(
+            nombre="Ada Lovelace",
+            correo="ada@example.com",
+            nombre_usuario="ada",
+            contrasena_hash=generate_password_hash("password123"),
         )
-        category = Category(name="Comunicados", description="Avisos institucionales")
-        db.session.add_all([user, category])
+        categoria = Categoria(nombre="Comunicados", descripcion="Avisos institucionales")
+        db.session.add_all([usuario, categoria])
         db.session.commit()
         db.session.add(
-            Announcement(
-                title="Bienvenida",
-                content="Inicio del ciclo lectivo.",
-                category_id=category.id,
-                user_id=user.id,
+            Anuncio(
+                titulo="Bienvenida",
+                contenido="Inicio del ciclo lectivo.",
+                categoria_id=categoria.id,
+                usuario_id=usuario.id,
             )
         )
         db.session.commit()
-    yield app
-    with app.app_context():
+    yield aplicacion
+    with aplicacion.app_context():
         db.session.remove()
         db.drop_all()
 
 
 @pytest.fixture()
-def client(app):
+def cliente(app):
     return app.test_client()
 
 
-def login(client):
-    return client.post(
+def iniciar_sesion(cliente):
+    return cliente.post(
         "/ingresar",
-        data={"identity": "ada", "password": "password123"},
+        data={"identificador": "ada", "contrasena": "password123"},
         follow_redirects=True,
     )
 
 
-def test_public_home_shows_announcements_and_filters(client):
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "Bienvenida" in response.get_data(as_text=True)
-    assert client.get("/?q=sin-resultados").status_code == 200
-    assert "No hay anuncios para mostrar" in client.get(
-        "/?q=sin-resultados"
-    ).get_data(as_text=True)
+def test_portada_publica_muestra_y_filtra_anuncios(cliente):
+    respuesta = cliente.get("/")
+    assert respuesta.status_code == 200
+    assert "Bienvenida" in respuesta.get_data(as_text=True)
+    respuesta = cliente.get("/?q=sin-resultados")
+    assert respuesta.status_code == 200
+    assert "No hay anuncios para mostrar" in respuesta.get_data(as_text=True)
 
 
-def test_login_and_protected_user_management(client):
-    assert client.get("/usuarios/").status_code == 302
-    rejected = client.post(
+def test_inicio_sesion_y_proteccion_de_administracion(cliente):
+    assert cliente.get("/usuarios/").status_code == 302
+    respuesta = cliente.post(
         "/ingresar",
-        data={"identity": "ada", "password": "incorrecta"},
+        data={"identificador": "ada", "contrasena": "incorrecta"},
         follow_redirects=True,
     )
-    assert "incorrectos" in rejected.get_data(as_text=True)
-    response = login(client)
-    assert response.status_code == 200
-    assert "Ada Lovelace" in response.get_data(as_text=True)
-    assert client.get("/usuarios/").status_code == 200
+    assert "incorrectos" in respuesta.get_data(as_text=True)
+    respuesta = iniciar_sesion(cliente)
+    assert respuesta.status_code == 200
+    assert "Ada Lovelace" in respuesta.get_data(as_text=True)
+    assert cliente.get("/usuarios/").status_code == 200
 
 
-def test_login_rejects_external_next_url(client):
-    response = client.post(
+def test_inicio_sesion_rechaza_redirecciones_externas(cliente):
+    respuesta = cliente.post(
         "/ingresar?next=//example.com",
-        data={"identity": "ada", "password": "password123"},
+        data={"identificador": "ada", "contrasena": "password123"},
     )
-    assert response.status_code == 302
-    assert response.headers["Location"] == "/"
+    assert respuesta.status_code == 302
+    assert respuesta.headers["Location"] == "/"
 
 
-def test_csrf_protected_logout_and_delete_forms():
-    app = create_app(
+def test_csrf_en_cierre_de_sesion_y_eliminacion():
+    aplicacion = create_app(
         {
             "TESTING": True,
-            "SECRET_KEY": "csrf-test-key",
+            "SECRET_KEY": "clave-pruebas-csrf",
             "SQLALCHEMY_DATABASE_URI": "sqlite://",
             "WTF_CSRF_ENABLED": True,
         }
     )
-    with app.app_context():
+    with aplicacion.app_context():
         db.create_all()
-        user = User(
-            name="Ada Lovelace",
-            email="ada@example.com",
-            username="ada",
-            password_hash=generate_password_hash("password123"),
+        usuario = Usuario(
+            nombre="Ada Lovelace",
+            correo="ada@example.com",
+            nombre_usuario="ada",
+            contrasena_hash=generate_password_hash("password123"),
         )
-        db.session.add_all([user, Category(name="Avisos")])
+        db.session.add_all([usuario, Categoria(nombre="Avisos")])
         db.session.commit()
 
-    client = app.test_client()
-    login_page = client.get("/ingresar").get_data(as_text=True)
+    cliente = aplicacion.test_client()
+    pagina_inicio_sesion = cliente.get("/ingresar").get_data(as_text=True)
     token = re.search(
-        r'name="csrf_token" type="hidden" value="([^"]+)"', login_page
+        r'name="csrf_token" type="hidden" value="([^"]+)"',
+        pagina_inicio_sesion,
     ).group(1)
-    response = client.post(
+    respuesta = cliente.post(
         "/ingresar",
-        data={"csrf_token": token, "identity": "ada", "password": "password123"},
+        data={
+            "csrf_token": token,
+            "identificador": "ada",
+            "contrasena": "password123",
+        },
     )
-    assert response.status_code == 302
+    assert respuesta.status_code == 302
 
-    categories_page = client.get("/categorias/").get_data(as_text=True)
-    delete_token = re.search(
-        r'name="csrf_token" value="([^"]+)"', categories_page
+    pagina_categorias = cliente.get("/categorias/").get_data(as_text=True)
+    token_eliminar = re.search(
+        r'name="csrf_token" value="([^"]+)"', pagina_categorias
     ).group(1)
-    response = client.post("/categorias/1/eliminar", data={"csrf_token": delete_token})
-    assert response.status_code == 302
-    with app.app_context():
-        assert Category.query.count() == 0
+    respuesta = cliente.post(
+        "/categorias/1/eliminar", data={"csrf_token": token_eliminar}
+    )
+    assert respuesta.status_code == 302
+    with aplicacion.app_context():
+        assert Categoria.query.count() == 0
 
-    home_page = client.get("/").get_data(as_text=True)
-    logout_token = re.search(
-        r'action="/salir"[^>]*>\s*<input type="hidden" name="csrf_token" value="([^"]+)"',
-        home_page,
+    pagina_portada = cliente.get("/").get_data(as_text=True)
+    token_salir = re.search(
+        r'action="/salir"[^>]*>\s*<input type="hidden" '
+        r'name="csrf_token" value="([^"]+)"',
+        pagina_portada,
     ).group(1)
-    response = client.post("/salir", data={"csrf_token": logout_token})
-    assert response.status_code == 302
-    with app.app_context():
+    respuesta = cliente.post("/salir", data={"csrf_token": token_salir})
+    assert respuesta.status_code == 302
+    with aplicacion.app_context():
         db.session.remove()
         db.drop_all()
 
 
-def test_category_crud_and_restrict_delete_when_in_use(app, client):
-    login(client)
-    response = client.post(
+def test_migra_nombre_de_columna_de_contrasena(tmp_path):
+    ruta_bd = tmp_path / "bd_anuncios.sqlite"
+    conexion = sqlite3.connect(ruta_bd)
+    conexion.execute(
+        """
+        CREATE TABLE usuarios (
+            id INTEGER PRIMARY KEY,
+            nombre VARCHAR(100) NOT NULL,
+            correo VARCHAR(120) NOT NULL UNIQUE,
+            nombre_usuario VARCHAR(40) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            creado_en DATETIME NOT NULL
+        )
+        """
+    )
+    conexion.execute(
+        "INSERT INTO usuarios VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+        ("Ada Lovelace", "ada@example.com", "ada", "hash-de-prueba"),
+    )
+    conexion.commit()
+    conexion.close()
+
+    aplicacion = create_app(
+        {
+            "TESTING": True,
+            "SECRET_KEY": "clave-migracion",
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{ruta_bd.as_posix()}",
+        }
+    )
+    with aplicacion.app_context():
+        columnas = {
+            columna["name"]
+            for columna in db.inspect(db.engine).get_columns("usuarios")
+        }
+        usuario = db.session.get(Usuario, 1)
+        assert "contrasena_hash" in columnas
+        assert "password_hash" not in columnas
+        assert usuario.contrasena_hash == "hash-de-prueba"
+        db.session.remove()
+        db.drop_all()
+
+
+def test_crud_categorias_y_restriccion_de_borrado(app, cliente):
+    iniciar_sesion(cliente)
+    respuesta = cliente.post(
         "/categorias/nueva",
-        data={"name": "Actividades", "description": "Agenda"},
+        data={"nombre": "Actividades", "descripcion": "Agenda"},
         follow_redirects=True,
     )
-    assert response.status_code == 200
-    assert "Actividades" in response.get_data(as_text=True)
+    assert respuesta.status_code == 200
+    assert "Actividades" in respuesta.get_data(as_text=True)
 
     with app.app_context():
-        category = Category.query.filter_by(name="Actividades").one()
-        category_id = category.id
-    response = client.post(
-        f"/categorias/{category_id}/editar",
-        data={"name": "Agenda", "description": "Agenda institucional"},
+        categoria = Categoria.query.filter_by(nombre="Actividades").one()
+        id_categoria = categoria.id
+    respuesta = cliente.post(
+        f"/categorias/{id_categoria}/editar",
+        data={"nombre": "Agenda", "descripcion": "Agenda institucional"},
         follow_redirects=True,
     )
-    assert "Agenda" in response.get_data(as_text=True)
+    assert "Agenda" in respuesta.get_data(as_text=True)
 
     with app.app_context():
-        category = Category.query.filter_by(name="Comunicados").one()
-        category_id = category.id
-    response = client.post(
-        f"/categorias/{category_id}/eliminar", follow_redirects=True
+        id_categoria = Categoria.query.filter_by(nombre="Comunicados").one().id
+    respuesta = cliente.post(
+        f"/categorias/{id_categoria}/eliminar", follow_redirects=True
     )
-    assert "tiene anuncios asociados" in response.get_data(as_text=True)
+    assert "tiene anuncios asociados" in respuesta.get_data(as_text=True)
 
     with app.app_context():
-        category = Category.query.filter_by(name="Agenda").one()
-        category_id = category.id
-    response = client.post(
-        f"/categorias/{category_id}/eliminar", follow_redirects=True
+        id_categoria = Categoria.query.filter_by(nombre="Agenda").one().id
+    respuesta = cliente.post(
+        f"/categorias/{id_categoria}/eliminar", follow_redirects=True
     )
-    assert "Categoría eliminada" in response.get_data(as_text=True)
+    assert "Categoría eliminada" in respuesta.get_data(as_text=True)
 
 
-def test_user_crud_and_prevent_self_deletion(app, client):
-    login(client)
-    response = client.post(
+def test_crud_usuarios_y_proteccion_de_cuenta_activa(app, cliente):
+    iniciar_sesion(cliente)
+    respuesta = cliente.post(
         "/usuarios/nuevo",
         data={
-            "name": "Grace Hopper",
-            "email": "grace@example.com",
-            "username": "grace",
-            "password": "password456",
+            "nombre": "Grace Hopper",
+            "correo": "grace@example.com",
+            "nombre_usuario": "grace",
+            "contrasena": "password456",
         },
         follow_redirects=True,
     )
-    assert response.status_code == 200
-    assert "Grace Hopper" in response.get_data(as_text=True)
+    assert respuesta.status_code == 200
+    assert "Grace Hopper" in respuesta.get_data(as_text=True)
 
     with app.app_context():
-        ada_id = User.query.filter_by(username="ada").one().id
-        grace_id = User.query.filter_by(username="grace").one().id
-    response = client.post(
-        f"/usuarios/{grace_id}/editar",
+        id_ada = Usuario.query.filter_by(nombre_usuario="ada").one().id
+        id_grace = Usuario.query.filter_by(nombre_usuario="grace").one().id
+    respuesta = cliente.post(
+        f"/usuarios/{id_grace}/editar",
         data={
-            "name": "Grace Brewster Hopper",
-            "email": "grace@example.com",
-            "username": "grace",
-            "password": "",
+            "nombre": "Grace Brewster Hopper",
+            "correo": "grace@example.com",
+            "nombre_usuario": "grace",
+            "contrasena": "",
         },
         follow_redirects=True,
     )
-    assert "Grace Brewster Hopper" in response.get_data(as_text=True)
-    response = client.post(f"/usuarios/{ada_id}/eliminar", follow_redirects=True)
-    assert "No puedes eliminar tu propia cuenta" in response.get_data(as_text=True)
-    response = client.post(f"/usuarios/{grace_id}/eliminar", follow_redirects=True)
-    assert "Usuario eliminado" in response.get_data(as_text=True)
+    assert "Grace Brewster Hopper" in respuesta.get_data(as_text=True)
+    respuesta = cliente.post(
+        f"/usuarios/{id_ada}/eliminar", follow_redirects=True
+    )
+    assert "No puedes eliminar tu propia cuenta" in respuesta.get_data(as_text=True)
+    respuesta = cliente.post(
+        f"/usuarios/{id_grace}/eliminar", follow_redirects=True
+    )
+    assert "Usuario eliminado" in respuesta.get_data(as_text=True)
 
 
-def test_announcement_crud_associations_and_home_filter(app, client):
-    login(client)
+def test_crud_anuncios_y_relaciones_con_portada(app, cliente):
+    iniciar_sesion(cliente)
     with app.app_context():
-        category_id = Category.query.filter_by(name="Comunicados").one().id
-        user_id = User.query.filter_by(username="ada").one().id
+        id_categoria = Categoria.query.filter_by(nombre="Comunicados").one().id
+        id_usuario = Usuario.query.filter_by(nombre_usuario="ada").one().id
 
-    response = client.post(
+    respuesta = cliente.post(
         "/anuncios/nuevo",
         data={
-            "title": "Feria de ciencias",
-            "content": "Viernes en el auditorio.",
-            "category_id": category_id,
-            "user_id": user_id,
+            "titulo": "Feria de ciencias",
+            "contenido": "Viernes en el auditorio.",
+            "categoria_id": id_categoria,
+            "usuario_id": id_usuario,
         },
         follow_redirects=True,
     )
-    assert response.status_code == 200
-    assert "Feria de ciencias" in response.get_data(as_text=True)
-    assert "Feria de ciencias" in client.get(
-        f"/?categoria={category_id}"
+    assert respuesta.status_code == 200
+    assert "Feria de ciencias" in respuesta.get_data(as_text=True)
+    assert "Feria de ciencias" in cliente.get(
+        f"/?categoria={id_categoria}"
     ).get_data(as_text=True)
 
     with app.app_context():
-        announcement_id = Announcement.query.filter_by(
-            title="Feria de ciencias"
-        ).one().id
-    response = client.post(
-        f"/anuncios/{announcement_id}/editar",
+        id_anuncio = Anuncio.query.filter_by(titulo="Feria de ciencias").one().id
+    respuesta = cliente.post(
+        f"/anuncios/{id_anuncio}/editar",
         data={
-            "title": "Feria actualizada",
-            "content": "Nuevo horario.",
-            "category_id": category_id,
-            "user_id": user_id,
+            "titulo": "Feria actualizada",
+            "contenido": "Nuevo horario.",
+            "categoria_id": id_categoria,
+            "usuario_id": id_usuario,
         },
         follow_redirects=True,
     )
-    assert "Feria actualizada" in response.get_data(as_text=True)
-    response = client.post(
-        f"/anuncios/{announcement_id}/eliminar", follow_redirects=True
+    assert "Feria actualizada" in respuesta.get_data(as_text=True)
+    respuesta = cliente.post(
+        f"/anuncios/{id_anuncio}/eliminar", follow_redirects=True
     )
-    assert "Anuncio eliminado" in response.get_data(as_text=True)
+    assert "Anuncio eliminado" in respuesta.get_data(as_text=True)

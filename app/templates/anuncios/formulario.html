@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo_pagina }}{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">ADMINISTRACIÓN</span><h1>{{ titulo_pagina }}</h1><p>Completa la información para publicar en el tablón institucional.</p></div></div>
+<div class="form-card">
+  {% if not formulario.categoria_id.choices or not formulario.usuario_id.choices %}
+  <div class="alert alert-warning">Para publicar un anuncio, primero registra al menos un usuario y una categoría.</div>
+  {% endif %}
+  <form method="post" novalidate>
+    {{ formulario.hidden_tag() }}
+    <div class="mb-3">{{ formulario.titulo.label(class="form-label") }}{{ formulario.titulo(class="form-control" + (" is-invalid" if formulario.titulo.errors else ""), placeholder="Ej.: Inscripciones abiertas") }}{% for error in formulario.titulo.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}</div>
+    <div class="mb-3">{{ formulario.contenido.label(class="form-label") }}{{ formulario.contenido(class="form-control" + (" is-invalid" if formulario.contenido.errors else ""), rows="7", placeholder="Escribe aquí la información del anuncio...") }}{% for error in formulario.contenido.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}</div>
+    <div class="row">
+      <div class="col-md-6 mb-4">{{ formulario.categoria_id.label(class="form-label") }}{{ formulario.categoria_id(class="form-select" + (" is-invalid" if formulario.categoria_id.errors else "")) }}{% for error in formulario.categoria_id.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+      <div class="col-md-6 mb-4">{{ formulario.usuario_id.label(class="form-label") }}{{ formulario.usuario_id(class="form-select" + (" is-invalid" if formulario.usuario_id.errors else "")) }}{% for error in formulario.usuario_id.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+    </div>
+    <div class="form-actions">{{ formulario.enviar(class="btn btn-primary", disabled=not formulario.categoria_id.choices or not formulario.usuario_id.choices) }}<a class="btn btn-light" href="{{ url_for('anuncios.lista') }}">Cancelar</a></div>
+  </form>
+</div>
+{% endblock %}

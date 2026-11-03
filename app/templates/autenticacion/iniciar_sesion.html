@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Iniciar sesión{% endblock %}
+{% block content %}
+<section class="login-layout">
+  <div class="login-intro">
+    <span class="eyebrow">PORTAL INSTITUCIONAL</span>
+    <h1>Las noticias de nuestra comunidad, en un solo lugar.</h1>
+    <p>Ingresa para administrar anuncios, categorías y usuarios del tablón institucional.</p>
+    <div class="login-decoration"><i class="bi bi-megaphone-fill"></i></div>
+  </div>
+  <div class="login-card">
+    <span class="icon-tile"><i class="bi bi-person-lock"></i></span>
+    <h2>Bienvenido/a</h2>
+    <p class="text-secondary mb-4">Ingresa tus credenciales para continuar.</p>
+    <form method="post" novalidate>
+      {{ formulario.hidden_tag() }}
+      <div class="mb-3">
+        {{ formulario.identificador.label(class="form-label") }}
+        {{ formulario.identificador(class="form-control form-control-lg", placeholder="usuario o correo", autocomplete="username") }}
+        {% for error in formulario.identificador.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+      </div>
+      <div class="mb-4">
+        {{ formulario.contrasena.label(class="form-label") }}
+        {{ formulario.contrasena(class="form-control form-control-lg", placeholder="Tu contraseña", autocomplete="current-password") }}
+        {% for error in formulario.contrasena.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+      </div>
+      {{ formulario.enviar(class="btn btn-primary btn-lg w-100") }}
+    </form>
+    <p class="login-help"><i class="bi bi-info-circle me-1"></i>Solicita una cuenta al administrador del sistema.</p>
+  </div>
+</section>
+{% endblock %}

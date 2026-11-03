@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+<section class="welcome-banner">
+  <div>
+    <span class="eyebrow">TABLÓN INSTITUCIONAL</span>
+    <h1>Lo que pasa en <span>{{ config.NOMBRE_INSTITUCION }}.</span></h1>
+    <p>Actividades, avisos e información importante para toda la comunidad.</p>
+  </div>
+  <div class="welcome-icon"><i class="bi bi-megaphone-fill"></i></div>
+</section>
+
+<section class="content-section">
+  <div class="section-heading">
+    <div><span class="eyebrow">MANTENTE AL DÍA</span><h2>Anuncios recientes</h2></div>
+    {% if current_user.is_authenticated %}
+      <a class="btn btn-primary" href="{{ url_for('anuncios.crear') }}"><i class="bi bi-plus-lg me-1"></i>Publicar anuncio</a>
+    {% endif %}
+  </div>
+  <form class="filter-bar" method="get" action="{{ url_for('inicio.portada') }}">
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input class="form-control" type="search" name="q" value="{{ busqueda }}" placeholder="Buscar anuncios...">
+    </div>
+    <select class="form-select" name="categoria" aria-label="Filtrar por categoría">
+      <option value="">Todas las categorías</option>
+      {% for categoria in categorias %}
+        <option value="{{ categoria.id }}" {% if categoria_seleccionada == categoria.id %}selected{% endif %}>{{ categoria.nombre }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-dark" type="submit">Filtrar</button>
+    {% if busqueda or categoria_seleccionada %}<a class="btn btn-light" href="{{ url_for('inicio.portada') }}">Limpiar</a>{% endif %}
+  </form>
+
+  {% if anuncios %}
+  <div class="announcement-grid">
+    {% for anuncio in anuncios %}
+    <article class="announcement-card">
+      <div class="announcement-meta">
+        <span class="category-pill">{{ anuncio.categoria.nombre }}</span>
+        <time datetime="{{ anuncio.creado_en.isoformat() }}">{{ anuncio.creado_en.strftime("%d/%m/%Y") }}</time>
+      </div>
+      <h3>{{ anuncio.titulo }}</h3>
+      <p class="announcement-body">{{ anuncio.contenido }}</p>
+      <div class="announcement-author"><span class="avatar-sm">{{ anuncio.autor.nombre[:1]|upper }}</span>Publicado por <strong>{{ anuncio.autor.nombre }}</strong></div>
+      {% if current_user.is_authenticated %}
+      <div class="card-actions">
+        <a href="{{ url_for('anuncios.editar', id_anuncio=anuncio.id) }}"><i class="bi bi-pencil me-1"></i>Editar</a>
+        <form method="post" action="{{ url_for('anuncios.eliminar', id_anuncio=anuncio.id) }}" onsubmit="return confirm('¿Eliminar este anuncio?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit"><i class="bi bi-trash me-1"></i>Eliminar</button>
+        </form>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><span class="empty-icon"><i class="bi bi-inbox"></i></span><h3>No hay anuncios para mostrar</h3><p>Prueba otra búsqueda o vuelve más tarde para ver novedades.</p></div>
+  {% endif %}
+</section>
+{% endblock %}
